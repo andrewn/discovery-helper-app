@@ -5,10 +5,12 @@
  * @param {function} callback The callback to be invoked when this object is
  *                            updated, or when an error occurs (passes string).
  */
-var ServiceFinder = function(callback) {
+var ServiceFinder = function(callback, serviceType) {
   this.callback_ = callback;
   this.byIP_ = {};
   this.byService_ = {};
+
+  this.serviceType_ = serviceType || '_services._dns-sd._udp.local';
 
   // Set up receive handlers.
   this.onReceiveListener_ = this.onReceive_.bind(this);
@@ -166,7 +168,7 @@ ServiceFinder.prototype.onReceiveError_ = function(info) {
  */
 ServiceFinder.prototype.broadcast_ = function(sock, address) {
   var packet = new DNSPacket();
-  packet.push('qd', new DNSRecord('_services._dns-sd._udp.local', 12, 1));
+  packet.push('qd', new DNSRecord(this.serviceType_, 12, 1));
 
   var raw = packet.serialize();
   chrome.sockets.udp.send(sock, raw, '224.0.0.251', 5353, function(sendInfo) {
