@@ -5,7 +5,11 @@
   "version": "0.7",
   "app": {
     "background": {
-      "scripts": ["background.js"]
+      "scripts": [
+        "dns.js", 
+        "service-finder.js", 
+        "background.js"
+      ]
     }
   },
   "sockets": {

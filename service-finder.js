@@ -18,27 +18,120 @@ var ServiceFinder = function(callback, serviceType) {
   this.onReceiveErrorListener_ = this.onReceiveError_.bind(this);
   chrome.sockets.udp.onReceiveError.addListener(this.onReceiveErrorListener_);
 
-  ServiceFinder.forEachAddress_(function(address, error) {
-    if (error) {
-      this.callback_(error);
-      return true;
-    }
-    if (address.indexOf(':') != -1) {
-      // TODO: ipv6.
-      console.log('IPv6 address unsupported', address);
-      return true;
-    }
-    console.log('Broadcasting to address', address);
+  // networkInterfaces       -> [ { name: 'v4', address: '1092103' }, { name: 'v6', address: '109:210:3' } ]
+  // addresses               -> [ '1092103', '109:210:3' ]
+  // validAddresses          -> [ '1092103' ]
+  // createAndBindToAddress  -> [ { socketId: 'kldsjkl', address: '1092103' } ]
+  // resolve -> this.broadcast(socketId, address);
+  // reject  -> log error
+  function log(value) {
+    console.log(value);
+  }
 
-    ServiceFinder.bindToAddress_(address, function(socket) {
-      if (!socket) {
-        this.callback_('could not bind UDP socket');
-        return true;
-      }
-      // Broadcast on it.
-      this.broadcast_(socket, address);
-    }.bind(this));
-  }.bind(this));
+  function error(value) {
+    console.error(value.stack);
+  }
+
+  // Enumerate this host's interface addresses and bind
+  // a UDP socket for each one
+  // Broadcast an mDNS request for each address
+  var self = this;
+  networkInterfaces().then(interfaceAddresses)
+                     .then(validAddresses)
+                     .then(createAndBindToAddresses)
+                     .then(function (sockets) {
+                        sockets.forEach(function (socket) {
+                          self.broadcast_(socket.socketId, socket.address);
+                        });
+                     })
+                     .then(null, error);
+
+  /**
+   * Fetch a list of network interfaces 
+   * Resolves with an array of network interface descriptions
+   * Fails with an error message
+   */
+  function networkInterfaces() {
+    return new Promise(function (resolve, reject){
+      chrome.system.network.getNetworkInterfaces(function(networkInterfaces) {
+        if (!networkInterfaces.length) {
+          reject( new Error('no network available!') );
+        } else {
+          resolve(networkInterfaces);
+        }
+      });
+    });
+  }
+
+  /**
+   * Extract IP addresses from a list of network interface descriptions
+   * Resolves with an array of addresses or an empty array
+   * @param {array} 
+   */
+  function interfaceAddresses(interfaces) {
+    return Promise.resolve(
+      interfaces.map(
+        function (interfaces) {
+          return interfaces.address;
+        }
+      )
+    );
+  }
+
+  /**
+   * Remove unsupported IP address types
+   * Resolves with an array of valid addresses
+   * @param {Array[string]} array of addresses
+   */
+  function validAddresses(addresses) {
+    return Promise.resolve(
+      addresses.filter(function (address) {
+        if (address.indexOf(':') != -1) {
+          // TODO: ipv6.
+          console.warn('IPv6 address unsupported', address);
+          return false;
+        } else {
+          return true;
+        }
+      })
+    );
+  }
+
+  /**
+   * Create UDP socket and bind to addresses
+   * Resolves with an array of Object.socketId, Object.address
+   * @param {Array[string]} array of addresses to bind to
+   */
+  function createAndBindToAddresses(addresses) {
+    var promises = addresses.map(createAndBindToAddress);
+    return Promise.all(promises);
+  }
+
+  /**
+   * Creates UDP socket bound to the specified address
+   * Resolves with object.socketId, object.address
+   * Rejects with error object
+   * @private
+   * @param {string} address to bind to
+   */
+  function createAndBindToAddress(address) {
+    return new Promise(function (resolve, reject) {
+      chrome.sockets.udp.create({}, function(createInfo) {
+        chrome.sockets.udp.bind(
+          createInfo.socketId, 
+          address, 
+          0,
+          function(result) {
+            if (result >= 0) {
+              resolve({ socketId: createInfo.socketId, address: address });
+            } else {
+              reject( new Error('Could not bind to socket') );
+            }
+          }
+        );
+      });
+    });
+  }
 
   // After a short time, if our database is empty, report an error.
   setTimeout(function() {
@@ -46,39 +139,6 @@ var ServiceFinder = function(callback, serviceType) {
       this.callback_('no mDNS services found!');
     }
   }.bind(this), 10 * 1000);
-};
-
-/**
- * Invokes the callback for every local network address on the system.
- * @private
- * @param {function} callback to invoke
- */
-ServiceFinder.forEachAddress_ = function(callback) {
-  chrome.system.network.getNetworkInterfaces(function(networkInterfaces) {
-    if (!networkInterfaces.length) {
-      callback(null, 'no network available!');
-      return true;
-    }
-    networkInterfaces.forEach(function(networkInterface) {
-      callback(networkInterface['address'], null);
-    });
-  });
-};
-
-/**
- * Creates UDP socket bound to the specified address, passing it to the
- * callback. Passes null on failure.
- * @private
- * @param {string} address to bind to
- * @param {function} callback to invoke when done
- */
-ServiceFinder.bindToAddress_ = function(address, callback) {
-  chrome.sockets.udp.create({}, function(createInfo) {
-    chrome.sockets.udp.bind(createInfo['socketId'], address, 0,
-        function(result) {
-      callback((result >= 0) ? createInfo['socketId'] : null);
-    });
-  });
 };
 
 /**

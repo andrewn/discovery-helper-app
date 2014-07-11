@@ -32,6 +32,9 @@ window.addEventListener('load', function() {
     // TODO: render information about outer/inner
     // for IPs, render 'last seen at...'
     // for services, render known service type.
+    console.log('finder.services()', finder.services());
+    console.log('finder.ips()', finder.ips());
+    console.log('finder.ips("_ssh._tcp")', finder.ips('_ssh._tcp'));
 
     results.innerHTML = '';
     outer.apply(finder).forEach(function(o) {
@@ -39,10 +42,15 @@ window.addEventListener('load', function() {
       li.innerHTML = getHtml_(outer, o);
       results.appendChild(li);
 
+      console.log('outer', outer, o);
+
       var ul = document.createElement('ul');
       inner.call(finder, o).forEach(function(i) {
         var li = document.createElement('li');
         li.innerHTML = getHtml_(inner, i);
+
+        console.log('inner', i);
+
         ul.appendChild(li);
       });
       ul.childNodes.length && results.appendChild(ul);
@@ -56,7 +64,8 @@ window.addEventListener('load', function() {
     results.classList.add('working');
 
     finder && finder.shutdown();
-    finder = new ServiceFinder(callback_);
+    finder = new ServiceFinder(callback_, '_radiodan-http._tcp.local');
+    // finder = new ServiceFinder(callback_);
   });
   refreshBtn.click();
 
