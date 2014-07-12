@@ -9,6 +9,7 @@ var ServiceFinder = function(callback, serviceType) {
   this.callback_ = callback;
   this.byIP_ = {};
   this.byService_ = {};
+  this.serviceInstances_ = {};
 
   this.serviceType_ = serviceType || '_services._dns-sd._udp.local';
 
@@ -41,6 +42,7 @@ var ServiceFinder = function(callback, serviceType) {
                      .then(createAndBindToAddresses)
                      .then(function (sockets) {
                         sockets.forEach(function (socket) {
+                          console.log('Broadcast', socket);
                           self.broadcast_(socket.socketId, socket.address);
                         });
                      })
@@ -182,6 +184,14 @@ ServiceFinder.prototype.ips = function(opt_service) {
 };
 
 /**
+ * Returns the service instances found by this ServiceFinder
+ */
+ServiceFinder.prototype.instances = function() {
+  return Object.keys(this.serviceInstances_)
+               .map(function(key) { return this.serviceInstances_[key]; }.bind(this));
+};
+
+/**
  * Handles an incoming UDP packet.
  * @private
  */
@@ -191,16 +201,32 @@ ServiceFinder.prototype.onReceive_ = function(info) {
     return o[k];
   };
 
+  console.log('udp', info);
+
   // Update our local database.
   // TODO: Resolve IPs using the dns extension.
   var packet = DNSPacket.parse(info.data);
   var byIP = getDefault_(this.byIP_, info.remoteAddress, {});
 
+  console.log('packet', packet);
+
   packet.each('an', 12, function(rec) {
     var ptr = rec.asName();
-    var byService = getDefault_(this.byService_, ptr, {})
+    var byService = getDefault_(this.byService_, ptr, {});
+    console.log('ptr %o, remoteAddress:remotePort %o:%o', ptr, info.remoteAddress, info.remotePort);
     byService[info.remoteAddress] = true;
     byIP[ptr] = true;
+
+    var serviceInstance = {
+      id  : ptr + '.' + this.serviceType_,
+      name: ptr,
+      type: this.serviceType_,
+      host: info.remoteAddress,
+      port: info.remotePort
+    };
+
+    this.serviceInstances_[ serviceInstance.id ] = serviceInstance;
+
   }.bind(this));
 
   // Ping! Something new is here. Only update every 25ms.

@@ -3,6 +3,10 @@ console.log('init', new Date());
 var serviceType = '_radiodan-http._tcp.local',
     serviceFinder;
 
+// serviceType = '_touch-able._tcp.local';
+
+console.log('serviceType', serviceType);
+
 serviceFinder = new ServiceFinder(handleServicesFound, serviceType);
 
 function handleServicesFound(error) {
@@ -11,10 +15,18 @@ function handleServicesFound(error) {
   if (error) {
     console.error(error);
   } else {
-    services = serviceFinder.ips();
+    services = serviceFinder.instances();
   }
 
   console.log('Found %o:', services.length, services);
+  sendMessage(services);
+}
+
+function sendMessage(message) {
+  var extensionId = 'knnomgofpdgadjdahgidadmeffhojdei';
+  chrome.runtime.sendMessage(
+    extensionId, message
+  );
 }
 
 // chrome.app.runtime.onLaunched.addListener(function() {
