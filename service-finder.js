@@ -24,14 +24,6 @@ var ServiceFinder = function(callback, serviceType) {
   // resolve -> this.broadcast(socketId, address);
   // reject  -> log error
 
-  function log(value) {
-    console.log(value);
-  }
-
-  function error(value) {
-    console.error(value.stack);
-  }
-
   // Enumerate this host's interface addresses and bind
   // a UDP socket for each one. Store this promise so 
   // future network calls can send to all sockets.
@@ -40,15 +32,7 @@ var ServiceFinder = function(callback, serviceType) {
                      .then(validAddresses)
                      .then(createAndBindToAddresses);
 
-  var self = this;
-  // Broadcast an mDNS request for each address
-  this.sockets.then(function (sockets) {
-                sockets.forEach(function (socket) {
-                  console.log('Broadcast', socket);
-                  self.broadcast_(socket.socketId, socket.address);
-                });
-              })
-              .then(null, error);
+  this.browseServices();
 
   /**
    * Fetch a list of network interfaces 
@@ -145,11 +129,42 @@ var ServiceFinder = function(callback, serviceType) {
   }.bind(this), 10 * 1000);
 };
 
+/*
+ * Helper for logging message
+ */
+ServiceFinder.log = function log(value) {
+  console.log(value);
+}
+
+/*
+ * Helper for logging error
+ */
+ServiceFinder.error = function error(value) {
+  console.error(value.stack);
+}
+
 /**
  * Returns the service instances found by this ServiceFinder
  */
 ServiceFinder.prototype.instances = function() {
   return this.serviceInstances_;
+};
+
+/**
+ * Triggers a service browsing on all sockets
+ */
+ServiceFinder.prototype.browseServices = function() {
+  var self = this;
+
+  // Broadcast an mDNS request for each address
+  this.sockets
+      .then(function (sockets) {
+        sockets.forEach(function (socket) {
+          console.log('Broadcast', socket);
+          self.broadcast_(socket.socketId, socket.address);
+        });
+      })
+      .then(null, ServiceFinder.error);
 };
 
 /**
