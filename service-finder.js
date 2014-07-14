@@ -180,7 +180,7 @@ ServiceFinder.prototype.browseServices = function() {
  */
 ServiceFinder.prototype.onReceive_ = function(info) {
 
-  console.log('udp', info, this);
+  console.log('udp', info);
 
   // Update our local database.
   // TODO: Resolve IPs using the dns extension.
