@@ -123,6 +123,28 @@ DataConsumer.prototype.name = function() {
 };
 
 /**
+ * Consumes a DNS character string
+ * @returns an array of strings found
+ */
+DataConsumer.prototype.string = function() {
+  var parts = [];
+  for (;;) {
+    var len = this.byte();
+    if (!len) {
+      break;
+    }
+
+    // Otherwise, consume a string!
+    var v = '';
+    while (len-- > 0) {
+      v += String.fromCharCode(this.byte());
+    }
+    parts.push(v);
+  }
+  return parts;
+};
+
+/**
  * DNSPacket holds the state of a DNS packet. It can be modified or serialized
  * in-place.
  *
@@ -240,7 +262,75 @@ var DNSRecord = function(name, type, cl, opt_ttl, opt_data) {
   if (!this.isQD) {
     this.ttl = opt_ttl;
     this.data_ = opt_data;
+
+    if (this.data_) {
+      this.data = DNSRecord.parseType(type, this.data_);
+      console.log('type: %o, value: %o, name: %o, data: %o', DNSRecord.TYPES[type] || '-', type , this.name || '-', this.data);
+    }
   }
+};
+
+DNSRecord.TYPES = {
+  'A'   :  1,  1: 'A',
+  'PTR' : 12, 12: 'PTR',
+  'TXT' : 16, 16: 'TXT',
+  // 'AAAA': 28, 28: 'AAAA',
+  'SRV' : 33, 33: 'SRV'
+};
+
+DNSRecord.TYPE_PARSERS = {};
+
+DNSRecord.TYPE_PARSERS.A = function (data) {
+  var consumer = new DataConsumer(data);
+  return {
+    'address': [ consumer.byte(), consumer.byte(), consumer.byte(), consumer.byte() ].join('.')
+  };
+};
+
+// DNSRecord.TYPE_PARSERS.AAAA = function (data) {
+//   var consumer = new DataConsumer(data);
+//   return {
+//     'address': [ 
+//       consumer.byte(), consumer.byte(), consumer.byte(), consumer.byte(),
+//       consumer.byte(), consumer.byte(), consumer.byte(), consumer.byte()
+//      ].join(':')
+//   };
+// };
+
+DNSRecord.TYPE_PARSERS.PTR = function (data) {
+  var consumer = new DataConsumer(data);
+  return {
+    'ptrdname': consumer.name()
+  };
+};
+
+DNSRecord.TYPE_PARSERS.SRV = function (data) {
+  var consumer = new DataConsumer(data);
+  return {
+    priority: consumer.short(),
+    weight  : consumer.short(),
+    port    : consumer.short(),
+    host    : consumer.name()
+  };
+};
+
+DNSRecord.TYPE_PARSERS.TXT = function (data) {
+  var consumer = new DataConsumer(data);
+  return {
+    txtdata: consumer.string()
+  };
+};
+
+DNSRecord.parseType = function (typeCode, data) {
+  var type   = DNSRecord.TYPES[typeCode],
+      parser = DNSRecord.TYPE_PARSERS[ type ],
+      fields = {};
+
+  if (typeof parser === 'function') {
+    fields = parser(data);
+  }
+
+  return fields;
 };
 
 DNSRecord.prototype.asName = function() {

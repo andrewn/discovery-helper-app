@@ -189,53 +189,55 @@ ServiceFinder.prototype.onReceive_ = function(info) {
   console.log('packet', packet);
   window.p = packet;
 
+  // What is the QUESTION?
+  var question = _.first( 
+    _.where( packet.data_.qd, { type: DNSRecord.TYPES.PTR } )
+  );
+  var id = question.name;
+  var instance = _.first( _.where(this.serviceInstances_, { id: id }) );
+
+  console.log('question: id: %o, instance: %o, rec: %o', id, instance, question);
+
+  if (!instance) {
+    instance = { id: id };
+    this.serviceInstances_.push(instance);
+  }
+
+  // ANSWERS section
   // PTR records
-  packet.each('an', 12, function(rec) {
-    var ptr = rec.asName();
-    console.log('ptr %o, remoteAddress %o', ptr, info.remoteAddress);
-
-    var serviceInstance = {
-      id  : ptr + '.' + this.serviceType_,
-      name: ptr,
-      type: this.serviceType_,
-      host: info.remoteAddress
-    };
-
-    // Find existing service instance keyed by id
-    var existing = _.first( _.where(this.serviceInstances_, { id: serviceInstance.id }) );
-    if (existing) {
-      // update
-      _.assign(existing, serviceInstance);
-    } else {
-      // new
-      this.serviceInstances_.push(serviceInstance);
-    }
-
-    // Perform resolution 
-    this.resolveServiceInstance(serviceInstance.id);
-    
+  var ptrs = _.where( packet.data_.an, { type: 12 } );
+  console.log('PTRs', ptrs);
+  ptrs.forEach(function (rec) {
+    this.parsePtr_(instance, rec);
   }.bind(this));
 
   // SRV records
-  packet.each('an', 33, function(rec) {
-    var consumer = new DataConsumer(rec.data_);
-    var srv = {
-      priority: consumer.short(),
-      weight  : consumer.short(),
-      port    : consumer.short(),
-      target  : consumer.name()
-    };
-
-    console.log('srv', srv);
-
-    // Find existing service instance keyed by id
-    var existing = _.first( _.where(this.serviceInstances_, { name: srv.target }) );
-    if (existing) {
-      _.assign(existing, srv);
-    } else {
-      console.warn('SRV received but no PTR found', srv);
-    }
+  var srvs = _.where( packet.data_.an, { type: 33 } )
+              .concat( _.where( packet.data_.ar, { type: 33 } ) );
+  console.log('SRVs', srvs);
+  srvs.forEach(function (rec) {
+    this.parseSrv_(instance, rec);
   }.bind(this));
+
+  var txts = _.where( packet.data_.an, { type: 16 } )
+              .concat( _.where( packet.data_.ar, { type: 16 } ) );
+  console.log('TXTs', txts);
+  txts.forEach(function (rec) {
+    this.parseTxt_(instance, rec);
+  }.bind(this));
+
+  var as = _.where( packet.data_.an, { type: 1 } )
+              .concat( _.where( packet.data_.ar, { type: 1 } ) );
+  console.log('As', as);
+  as.forEach(function (rec) {
+    this.parseA_(instance, rec);
+  }.bind(this));
+
+  console.log('ptrs %o, srvs %o, txts %o, as %o', ptrs.length, srvs.length, txts.length, as.length);
+  t = txts;
+
+  // TODO: Resolve a service instance if SRV and TXT
+  //       haven't been populated
 
   // Ping! Something new is here. Only update every 25ms.
   if (!this.callback_pending_) {
@@ -246,6 +248,59 @@ ServiceFinder.prototype.onReceive_ = function(info) {
       this.callback_pending_ = undefined;
       this.callback_();
     }.bind(this), 25);
+  }
+};
+
+/**
+ * Parse PTR
+ * @private
+ */
+ServiceFinder.prototype.parsePtr_ = function(instance, rec) {
+  var ptr = rec.data.ptrdname;
+  console.log('ptr %o, remoteAddress %o', ptr);
+
+  var serviceInstance = {
+    id  : ptr + '.' + this.serviceType_,
+    name: ptr,
+    type: this.serviceType_
+  };
+
+  if (instance && instance.id === serviceInstance.id) {
+    // Update
+    return _.assign(instance, serviceInstance);
+  } else {
+    return serviceInstance;
+  }
+  // Perform resolution 
+  // this.resolveServiceInstance(serviceInstance.id);    
+};
+
+ServiceFinder.prototype.parseSrv_ = function(instance, rec) {
+  var srv = rec.data;
+  console.log('srv', srv);
+  _.assign(instance, srv);
+};
+
+ServiceFinder.prototype.parseTxt_ = function(instance, rec) {
+  var data;
+
+  // If name property is empty then this is the 
+  // record we want
+  if (!rec.name) {
+    data = rec.data.txtdata;
+  }
+
+  // Add to existing record
+  if (data) {
+    instance.txt = data;
+  }
+};
+
+ServiceFinder.prototype.parseA_ = function(instance, rec) {
+  // If name property is empty then this is the 
+  // record we want
+  if (!rec.name) {
+    instance.address = rec.data.address;
   }
 };
 
