@@ -6,4 +6,4 @@ This Chrome App listens for Radiodan services on the local network using DNS-SD 
 Code
 ---
 
-This is heavily based on the Chrome App `mDNS browser` sample app.
+This is heavily based on the Chrome App [`mDNS browser` sample app](https://github.com/GoogleChrome/chrome-app-samples/tree/master/mdns-browser).
