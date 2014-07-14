@@ -1,16 +1,17 @@
-console.log('init', new Date());
+var serviceType   = '_radiodan-http._tcp.local',
+    serviceFinder = new ServiceFinder(handleServicesFound, serviceType),
+    services      = [],
+    recipients    = [];
 
-var serviceType = '_radiodan-http._tcp.local',
-    serviceFinder;
-
-// serviceType = '_touch-able._tcp.local';
-
-console.log('serviceType', serviceType);
-
-serviceFinder = new ServiceFinder(handleServicesFound, serviceType);
+chrome.runtime.onMessageExternal.addListener(function(message, sender) {
+  if(recipients.indexOf(sender.id) == -1) {
+    recipients.push(sender.id);
+    sendMessage([sender.id], services);
+  }
+});
 
 function handleServicesFound(error) {
-  var services = [];
+  services = [];
 
   if (error) {
     console.error(error);
@@ -19,25 +20,15 @@ function handleServicesFound(error) {
   }
 
   console.log('Found %o:', services.length, services);
-  sendMessage(services);
+  sendMessage(recipients, services);
 }
 
-function sendMessage(message) {
-  var extensionId = 'knnomgofpdgadjdahgidadmeffhojdei';
-  chrome.runtime.sendMessage(
-    extensionId, message
-  );
+function sendMessage(recievers, message) {
+  recievers.forEach(function(recipient) {
+    console.log('sending', recipient, message);
+    chrome.runtime.sendMessage(
+      recipient, message
+    );
+  });
 }
 
-// chrome.app.runtime.onLaunched.addListener(function() {
-//   chrome.app.window.create('main.html', {
-//     id: 'mainWindow',
-//     frame: 'none',
-//     bounds: {
-//       width: 440,
-//       height: 440,
-//     },
-//     minWidth: 440,
-//     minHeight: 200,
-//   });
-// });
