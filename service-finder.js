@@ -129,6 +129,13 @@ var ServiceFinder = function(callback, serviceType) {
   }.bind(this), 10 * 1000);
 };
 
+ServiceFinder.nextId = (function () {
+  var id_ = 0;
+  return function () {
+    return id_++;
+  };
+})();
+
 /*
  * Helper for logging message
  */
@@ -256,7 +263,8 @@ ServiceFinder.prototype.onReceiveError_ = function(info) {
  * @private
  */
 ServiceFinder.prototype.broadcast_ = function(sock, address) {
-  var packet = new DNSPacket();
+  var requestId = ServiceFinder.nextId();
+  var packet = new DNSPacket(requestId);
   packet.push('qd', new DNSRecord(this.serviceType_, 12, 1));
 
   var raw = packet.serialize();

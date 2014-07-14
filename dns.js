@@ -128,7 +128,8 @@ DataConsumer.prototype.name = function() {
  *
  * @constructor
  */
-var DNSPacket = function(opt_flags) {
+var DNSPacket = function(opt_id, opt_flags) {
+  this.id_    = opt_id;
   this.flags_ = opt_flags || 0; /* uint16 */
   this.data_ = {'qd': [], 'an': [], 'ns': [], 'ar': []};
 };
@@ -138,9 +139,10 @@ var DNSPacket = function(opt_flags) {
  */
 DNSPacket.parse = function(buffer) {
   var consumer = new DataConsumer(buffer);
-  if (consumer.short()) {
-    throw new Error('DNS packet must start with 00 00');
-  }
+  var id = consumer.short();
+  // if (consumer.short()) {
+  //   throw new Error('DNS packet must start with 00 00');
+  // }
   var flags = consumer.short();
   var count = {
     'qd': consumer.short(),
@@ -148,7 +150,7 @@ DNSPacket.parse = function(buffer) {
     'ns': consumer.short(),
     'ar': consumer.short(),
   };
-  var packet = new DNSPacket(flags);
+  var packet = new DNSPacket(id, flags);
 
   // Parse the QUESTION section.
   for (var i = 0; i < count['qd']; ++i) {
@@ -203,7 +205,7 @@ DNSPacket.prototype.serialize = function() {
   var out = new DataWriter();
   var s = ['qd', 'an', 'ns', 'ar'];
 
-  out.short(0).short(this.flags_);
+  out.short(this.id_).short(this.flags_);
 
   s.forEach(function(section) {
     out.short(this.data_[section].length);
