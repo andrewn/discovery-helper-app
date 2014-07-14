@@ -361,6 +361,7 @@ ServiceFinder.prototype.resolveServiceInstance = function(instanceName) {
 ServiceFinder.prototype.resolveServiceInstanceForSocket_ = function(sock, instanceName) {
   var packet = new DNSPacket();
   packet.push('qd', new DNSRecord(instanceName, 33, 1));
+  packet.push('qd', new DNSRecord(instanceName, 16, 1));
 
   var raw = packet.serialize();
   console.log('packet %o, raw %o', packet, raw);
