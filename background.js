@@ -4,9 +4,11 @@ var serviceType   = '_radiodan-http._tcp.local',
     recipients    = [],
     pollingInterval = 10000;
 
-window.setInterval(function () {
-  serviceFinder.browseServices();
-}, pollingInterval);
+if (pollingInterval) {
+  window.setInterval(function () {
+    serviceFinder.browseServices();
+  }, pollingInterval);
+}
 
 chrome.runtime.onMessageExternal.addListener(function(message, sender) {
   if(recipients.indexOf(sender.id) == -1) {
