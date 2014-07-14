@@ -7,8 +7,6 @@
  */
 var ServiceFinder = function(callback, serviceType) {
   this.callback_ = callback;
-  this.byIP_ = {};
-  this.byService_ = {};
   this.serviceInstances_ = {};
 
   this.serviceType_ = serviceType || '_services._dns-sd._udp.local';
@@ -25,6 +23,7 @@ var ServiceFinder = function(callback, serviceType) {
   // createAndBindToAddress  -> [ { socketId: 'kldsjkl', address: '1092103' } ]
   // resolve -> this.broadcast(socketId, address);
   // reject  -> log error
+
   function log(value) {
     console.log(value);
   }
@@ -137,50 +136,10 @@ var ServiceFinder = function(callback, serviceType) {
 
   // After a short time, if our database is empty, report an error.
   setTimeout(function() {
-    if (!Object.keys(this.byIP_).length) {
+    if (!Object.keys(this.serviceInstances_).length) {
       this.callback_('no mDNS services found!');
     }
   }.bind(this), 10 * 1000);
-};
-
-/**
- * Sorts the passed list of string IPs in-place.
- * @private
- */
-ServiceFinder.sortIps_ = function(arg) {
-  arg.sort(ServiceFinder.sortIps_.sort);
-  return arg;
-};
-ServiceFinder.sortIps_.sort = function(l, r) {
-  // TODO: support v6.
-  var lp = l.split('.').map(ServiceFinder.sortIps_.toInt_);
-  var rp = r.split('.').map(ServiceFinder.sortIps_.toInt_);
-  for (var i = 0; i < Math.min(lp.length, rp.length); ++i) {
-    if (lp[i] < rp[i]) {
-      return -1;
-    } else if (lp[i] > rp[i]) {
-      return +1;
-    }
-  }
-  return 0;
-};
-ServiceFinder.sortIps_.toInt_ = function(i) { return +i };
-
-/**
- * Returns the services found by this ServiceFinder, optionally filtered by IP.
- */
-ServiceFinder.prototype.services = function(opt_ip) {
-  var k = Object.keys(opt_ip ? this.byIP_[opt_ip] : this.byService_);
-  k.sort();
-  return k;
-};
-
-/**
- * Returns the IPs found by this ServiceFinder, optionally filtered by service.
- */
-ServiceFinder.prototype.ips = function(opt_service) {
-  var k = Object.keys(opt_service ? this.byService_[opt_service] : this.byIP_);
-  return ServiceFinder.sortIps_(k);
 };
 
 /**
@@ -206,16 +165,12 @@ ServiceFinder.prototype.onReceive_ = function(info) {
   // Update our local database.
   // TODO: Resolve IPs using the dns extension.
   var packet = DNSPacket.parse(info.data);
-  var byIP = getDefault_(this.byIP_, info.remoteAddress, {});
 
   console.log('packet', packet);
 
   packet.each('an', 12, function(rec) {
     var ptr = rec.asName();
-    var byService = getDefault_(this.byService_, ptr, {});
     console.log('ptr %o, remoteAddress:remotePort %o:%o', ptr, info.remoteAddress, info.remotePort);
-    byService[info.remoteAddress] = true;
-    byIP[ptr] = true;
 
     var serviceInstance = {
       id  : ptr + '.' + this.serviceType_,
