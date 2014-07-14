@@ -1,13 +1,14 @@
 {
   "name": "Radiodan Discovery Helper",
+  "short_name": "radiodan-disco",
   "description": "Helps find Radiodan services on the local network",
   "manifest_version": 2,
   "version": "0.7",
   "app": {
     "background": {
       "scripts": [
-        "dns.js", 
-        "service-finder.js", 
+        "dns.js",
+        "service-finder.js",
         "background.js"
       ]
     }
