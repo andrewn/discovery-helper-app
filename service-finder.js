@@ -7,7 +7,7 @@
  */
 var ServiceFinder = function(callback, serviceType) {
   this.callback_ = callback;
-  this.serviceInstances_ = {};
+  this.serviceInstances_ = [];
 
   this.serviceType_ = serviceType || '_services._dns-sd._udp.local';
 
@@ -33,19 +33,22 @@ var ServiceFinder = function(callback, serviceType) {
   }
 
   // Enumerate this host's interface addresses and bind
-  // a UDP socket for each one
-  // Broadcast an mDNS request for each address
-  var self = this;
-  networkInterfaces().then(interfaceAddresses)
+  // a UDP socket for each one. Store this promise so 
+  // future network calls can send to all sockets.
+  this.sockets = networkInterfaces()
+                    .then(interfaceAddresses)
                      .then(validAddresses)
-                     .then(createAndBindToAddresses)
-                     .then(function (sockets) {
-                        sockets.forEach(function (socket) {
-                          console.log('Broadcast', socket);
-                          self.broadcast_(socket.socketId, socket.address);
-                        });
-                     })
-                     .then(null, error);
+                     .then(createAndBindToAddresses);
+
+  var self = this;
+  // Broadcast an mDNS request for each address
+  this.sockets.then(function (sockets) {
+                sockets.forEach(function (socket) {
+                  console.log('Broadcast', socket);
+                  self.broadcast_(socket.socketId, socket.address);
+                });
+              })
+              .then(null, error);
 
   /**
    * Fetch a list of network interfaces 
@@ -136,7 +139,7 @@ var ServiceFinder = function(callback, serviceType) {
 
   // After a short time, if our database is empty, report an error.
   setTimeout(function() {
-    if (!Object.keys(this.serviceInstances_).length) {
+    if (!this.serviceInstances_.length) {
       this.callback_('no mDNS services found!');
     }
   }.bind(this), 10 * 1000);
@@ -146,8 +149,7 @@ var ServiceFinder = function(callback, serviceType) {
  * Returns the service instances found by this ServiceFinder
  */
 ServiceFinder.prototype.instances = function() {
-  return Object.keys(this.serviceInstances_)
-               .map(function(key) { return this.serviceInstances_[key]; }.bind(this));
+  return this.serviceInstances_;
 };
 
 /**
@@ -155,39 +157,70 @@ ServiceFinder.prototype.instances = function() {
  * @private
  */
 ServiceFinder.prototype.onReceive_ = function(info) {
-  var getDefault_ = function(o, k, def) {
-    (k in o) || false == (o[k] = def);
-    return o[k];
-  };
 
-  console.log('udp', info);
+  console.log('udp', info, this);
 
   // Update our local database.
   // TODO: Resolve IPs using the dns extension.
   var packet = DNSPacket.parse(info.data);
 
   console.log('packet', packet);
+  window.p = packet;
 
+  // PTR records
   packet.each('an', 12, function(rec) {
     var ptr = rec.asName();
-    console.log('ptr %o, remoteAddress:remotePort %o:%o', ptr, info.remoteAddress, info.remotePort);
+    console.log('ptr %o, remoteAddress %o', ptr, info.remoteAddress);
 
     var serviceInstance = {
       id  : ptr + '.' + this.serviceType_,
       name: ptr,
       type: this.serviceType_,
-      host: info.remoteAddress,
-      port: info.remotePort
+      host: info.remoteAddress
     };
 
-    this.serviceInstances_[ serviceInstance.id ] = serviceInstance;
+    // Find existing service instance keyed by id
+    var existing = _.first( _.where(this.serviceInstances_, { id: serviceInstance.id }) );
+    if (existing) {
+      // update
+      _.assign(existing, serviceInstance);
+    } else {
+      // new
+      this.serviceInstances_.push(serviceInstance);
+    }
 
+    // Perform resolution 
+    this.resolveServiceInstance(serviceInstance.id);
+    
+  }.bind(this));
+
+  // SRV records
+  packet.each('an', 33, function(rec) {
+    var consumer = new DataConsumer(rec.data_);
+    var srv = {
+      priority: consumer.short(),
+      weight  : consumer.short(),
+      port    : consumer.short(),
+      target  : consumer.name()
+    };
+
+    console.log('srv', srv);
+
+    // Find existing service instance keyed by id
+    var existing = _.first( _.where(this.serviceInstances_, { name: srv.target }) );
+    if (existing) {
+      _.assign(existing, srv);
+    } else {
+      console.warn('SRV received but no PTR found', srv);
+    }
   }.bind(this));
 
   // Ping! Something new is here. Only update every 25ms.
   if (!this.callback_pending_) {
+    console.log('set timeout');
     this.callback_pending_ = true;
     setTimeout(function() {
+      console.log('timout callback');
       this.callback_pending_ = undefined;
       this.callback_();
     }.bind(this), 25);
@@ -212,6 +245,48 @@ ServiceFinder.prototype.broadcast_ = function(sock, address) {
   packet.push('qd', new DNSRecord(this.serviceType_, 12, 1));
 
   var raw = packet.serialize();
+  chrome.sockets.udp.send(sock, raw, '224.0.0.251', 5353, function(sendInfo) {
+    if (sendInfo.resultCode < 0)
+      this.callback_('Could not send data to:' + address);
+  });
+};
+
+/**
+ * Given an instance name, resolves the SRV and TXT record for 
+ * the instance. From the spec:
+ *    The SRV record for a service gives the port number and
+ *    target host name where the service may be found.  The TXT record
+ *    gives additional information about the service, as described in
+ *    Section 6, "Data Syntax for DNS-SD TXT Records".
+ * 
+ */
+ServiceFinder.prototype.resolveServiceInstance = function(instanceName) {
+  var self = this;
+  this.sockets
+      .then(function (sockets) {
+        sockets.forEach(function (socket) {
+          console.log('resolveForSocket', socket, instanceName);
+          self.resolveServiceInstanceForSocket_(socket.socketId, instanceName);
+        });
+      });
+};
+
+/**
+ * Given an instance name, resolves the SRV and TXT record for 
+ * the instance. From the spec:
+ *    The SRV record for a service gives the port number and
+ *    target host name where the service may be found.  The TXT record
+ *    gives additional information about the service, as described in
+ *    Section 6, "Data Syntax for DNS-SD TXT Records".
+ * 
+ */
+ServiceFinder.prototype.resolveServiceInstanceForSocket_ = function(sock, instanceName) {
+  var packet = new DNSPacket();
+  packet.push('qd', new DNSRecord(instanceName, 33, 1));
+
+  var raw = packet.serialize();
+  console.log('packet %o, raw %o', packet, raw);
+
   chrome.sockets.udp.send(sock, raw, '224.0.0.251', 5353, function(sendInfo) {
     if (sendInfo.resultCode < 0)
       this.callback_('Could not send data to:' + address);
