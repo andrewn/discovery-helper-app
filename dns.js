@@ -265,7 +265,7 @@ var DNSRecord = function(name, type, cl, opt_ttl, opt_data) {
 
     if (this.data_) {
       this.data = DNSRecord.parseType(type, this.data_);
-      console.log('type: %o, value: %o, name: %o, data: %o', DNSRecord.TYPES[type] || '-', type , this.name || '-', this.data);
+      console.log('type: %o (%o), name: %o, ttl: %o, data: %o', DNSRecord.TYPES[type] || '', type , this.name || '', this.ttl, this.data);
     }
   }
 };

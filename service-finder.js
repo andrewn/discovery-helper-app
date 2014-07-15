@@ -205,6 +205,21 @@ ServiceFinder.prototype.onReceive_ = function(info) {
     var id = serviceInstance.id;
     var instance = _.first( _.where(this.serviceInstances_, { id: id }) );
 
+    // Expire record after TTL
+    if (typeof ptr.ttl === 'number') {
+      if (ptr.ttl === 0) {
+        // Expire
+      } else {
+        window.setTimeout(
+          function () {
+            _.pull(this.serviceInstances_, instance);
+            this.browseServices();
+          }.bind(this),
+          ptr.ttl * 1000
+        );
+      }
+    }
+
     console.log('question: id: %o, instance: %o, rec: %o', id, instance, question);
 
     if (!instance) {
