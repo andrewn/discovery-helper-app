@@ -35,7 +35,7 @@ var ServiceFinder = function(callback, serviceType) {
   this.browseServices();
 
   /**
-   * Fetch a list of network interfaces 
+   * Fetch a list of network interfaces
    * Resolves with an array of network interface descriptions
    * Fails with an error message
    */
@@ -54,7 +54,7 @@ var ServiceFinder = function(callback, serviceType) {
   /**
    * Extract IP addresses from a list of network interface descriptions
    * Resolves with an array of addresses or an empty array
-   * @param {array} 
+   * @param {array}
    */
   function interfaceAddresses(interfaces) {
     return Promise.resolve(
@@ -106,8 +106,8 @@ var ServiceFinder = function(callback, serviceType) {
     return new Promise(function (resolve, reject) {
       chrome.sockets.udp.create({}, function(createInfo) {
         chrome.sockets.udp.bind(
-          createInfo.socketId, 
-          address, 
+          createInfo.socketId,
+          address,
           0,
           function(result) {
             if (result >= 0) {
