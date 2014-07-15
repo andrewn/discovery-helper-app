@@ -44,8 +44,9 @@ function handleServicesFound(error) {
            service.txt.player.name = "dave"
 */
 function transformTxtToKeys(service) {
+  var obj = {};
   if (service.txt && service.txt.map) {
-    service.txt.map(function (txt) {
+    service.txt.forEach(function (txt) {
       var parts = txt.split('='),
           key   = parts[0],
           value = parts[1] || true;
@@ -56,8 +57,9 @@ function transformTxtToKeys(service) {
         // Value isn't JSON
       }
 
-      service.txt[key] = value;
+      obj[key] = value;
     });
+    service.txt = obj;
   }
   return service;
 }
