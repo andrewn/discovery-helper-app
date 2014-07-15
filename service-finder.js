@@ -193,23 +193,25 @@ ServiceFinder.prototype.onReceive_ = function(info) {
   var question = _.first( 
     _.where( packet.data_.qd, { type: DNSRecord.TYPES.PTR } )
   );
-  var id = question.name;
-  var instance = _.first( _.where(this.serviceInstances_, { id: id }) );
-
-  console.log('question: id: %o, instance: %o, rec: %o', id, instance, question);
-
-  if (!instance) {
-    instance = { id: id };
-    this.serviceInstances_.push(instance);
-  }
 
   // ANSWERS section
   // PTR records
-  var ptrs = _.where( packet.data_.an, { type: 12 } );
-  console.log('PTRs', ptrs);
-  ptrs.forEach(function (rec) {
-    this.parsePtr_(instance, rec);
-  }.bind(this));
+  var ptr = _.first( _.where( packet.data_.an, { type: 12 } ) );
+  console.log('PTRs', ptr);
+
+  if (ptr) {
+    var serviceInstance = this.parsePtr_(ptr);
+
+    var id = serviceInstance.id;
+    var instance = _.first( _.where(this.serviceInstances_, { id: id }) );
+
+    console.log('question: id: %o, instance: %o, rec: %o', id, instance, question);
+
+    if (!instance) {
+      instance = { id: id };
+      this.serviceInstances_.push(instance);
+    }
+  }
 
   // SRV records
   var srvs = _.where( packet.data_.an, { type: 33 } )
@@ -233,7 +235,7 @@ ServiceFinder.prototype.onReceive_ = function(info) {
     this.parseA_(instance, rec);
   }.bind(this));
 
-  console.log('ptrs %o, srvs %o, txts %o, as %o', ptrs.length, srvs.length, txts.length, as.length);
+  console.log('ptr %o, srvs %o, txts %o, as %o', ptr, srvs.length, txts.length, as.length);
   t = txts;
 
   // TODO: Resolve a service instance if SRV and TXT
@@ -255,7 +257,7 @@ ServiceFinder.prototype.onReceive_ = function(info) {
  * Parse PTR
  * @private
  */
-ServiceFinder.prototype.parsePtr_ = function(instance, rec) {
+ServiceFinder.prototype.parsePtr_ = function(rec) {
   var ptr = rec.data.ptrdname;
   console.log('ptr %o, remoteAddress %o', ptr);
 
@@ -265,12 +267,7 @@ ServiceFinder.prototype.parsePtr_ = function(instance, rec) {
     type: this.serviceType_
   };
 
-  if (instance && instance.id === serviceInstance.id) {
-    // Update
-    return _.assign(instance, serviceInstance);
-  } else {
-    return serviceInstance;
-  }
+  return serviceInstance;
   // Perform resolution 
   // this.resolveServiceInstance(serviceInstance.id);    
 };
