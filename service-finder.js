@@ -5,9 +5,11 @@
  * @param {function} callback The callback to be invoked when this object is
  *                            updated, or when an error occurs (passes string).
  */
-var ServiceFinder = function(callback, serviceType) {
+var ServiceFinder = function(callback, serviceType, config) {
+  config = config || {};
   this.callback_ = callback;
   this.serviceInstances_ = [];
+  this.expireRecords_ = config.expireRecords != null ? config.expireRecords : true;
 
   this.serviceType_ = serviceType || '_services._dns-sd._udp.local';
 
@@ -92,6 +94,36 @@ var ServiceFinder = function(callback, serviceType) {
    */
   function createAndBindToAddresses(addresses) {
     var promises = addresses.map(createAndBindToAddress);
+
+    console.log('addresses', addresses);
+    // Also bind to multicast mDNS announcement port
+    /*
+      A compliant Multicast DNS querier, which implements the rules
+      specified in this document, MUST send its Multicast DNS queries from
+      UDP source port 5353 (the well-known port assigned to mDNS), and MUST
+      listen for Multicast DNS replies sent to UDP destination port 5353 at
+      the mDNS link-local multicast address (224.0.0.251 and/or its IPv6
+      equivalent FF02::FB).
+
+      https://groups.google.com/a/chromium.org/forum/#!topic/apps-dev/slnIoz6KOCk
+    */
+    var multicast = createAndBindToAddress('0.0.0.0', 5353);
+    multicast.then(function (config) {
+      console.log('created and bound to ', config);
+      chrome.sockets.udp.joinGroup(
+        config.socketId, 
+        '224.0.0.251', //config.address, 
+        function (result) { 
+          if (result != 0) {
+            chrome.sockets.udp.close(config.socketId);
+            console.error('Error joining group', result); 
+          } else {
+            console.log('Joined group', result);
+          }
+        }
+      );
+    }, ServiceFinder.error);
+
     return Promise.all(promises);
   }
 
@@ -102,13 +134,15 @@ var ServiceFinder = function(callback, serviceType) {
    * @private
    * @param {string} address to bind to
    */
-  function createAndBindToAddress(address) {
+  function createAndBindToAddress(address, port) {
+    var port = port || 0;
+    console.log('bind to ', address, port);
     return new Promise(function (resolve, reject) {
       chrome.sockets.udp.create({}, function(createInfo) {
         chrome.sockets.udp.bind(
-          createInfo.socketId,
-          address,
-          0,
+          createInfo.socketId, 
+          address, 
+          port,
           function(result) {
             if (result >= 0) {
               resolve({ socketId: createInfo.socketId, address: address });
@@ -206,7 +240,7 @@ ServiceFinder.prototype.onReceive_ = function(info) {
     var instance = _.first( _.where(this.serviceInstances_, { id: id }) );
 
     // Expire record after TTL
-    if (typeof ptr.ttl === 'number') {
+    if (this.expireRecords_ && typeof ptr.ttl === 'number') {
       if (ptr.ttl === 0) {
         // Expire
       } else {

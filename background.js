@@ -1,8 +1,9 @@
-var serviceType   = '_radiodan-http._tcp.local',
-    serviceFinder = new ServiceFinder(handleServicesFound, serviceType),
+var pollingInterval = 0, //10000,
+    expireRecords = false,
+    serviceType   = '_radiodan-http._tcp.local',
+    serviceFinder = new ServiceFinder(handleServicesFound, serviceType, { expireRecords: expireRecords }),
     services      = [],
-    recipients    = [],
-    pollingInterval = 10000;
+    recipients    = [];
 
 if (pollingInterval) {
   window.setInterval(function () {
