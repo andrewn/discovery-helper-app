@@ -107,6 +107,11 @@ var ServiceFinder = function(callback, serviceType, config) {
 
       https://groups.google.com/a/chromium.org/forum/#!topic/apps-dev/slnIoz6KOCk
     */
+    /*
+    TODO: Try to join the multicast group first otherwise fall
+          back to naive polling. This won't work on systems
+          that already have an mDNS stack listening on port 5353
+
     var multicast = createAndBindToAddress('0.0.0.0', 5353);
     multicast.then(function (config) {
       console.log('created and bound to ', config);
@@ -123,6 +128,7 @@ var ServiceFinder = function(callback, serviceType, config) {
         }
       );
     }, ServiceFinder.error);
+    */
 
     return Promise.all(promises);
   }
