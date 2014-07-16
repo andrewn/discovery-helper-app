@@ -1,9 +1,32 @@
-var pollingInterval = 0, //10000,
-    expireRecords = false,
+var logToObject   = true,
+    pollingInterval = 10000,  // how often to do service enumeration
+    expireRecords = true,     // expire PTR records based on their TTL
     serviceType   = '_radiodan-http._tcp.local',
     serviceFinder = new ServiceFinder(handleServicesFound, serviceType, { expireRecords: expireRecords }),
     services      = [],
     recipients    = [];
+
+// Override some logging functions
+// to add to an array
+var Logger = function (override, limit) {
+  var logger = [];
+
+  ['log', 'warn', 'error'].forEach(function(name) {
+    override[name] = function () {
+      logger.push(arguments);
+
+      if (logger.length > limit) {
+        logger.splice(0, logger.length - limit);
+      }
+    };
+  });
+
+  return logger;
+};
+
+if (logToObject) {
+  var logger = Logger(console, 500);
+}
 
 if (pollingInterval) {
   window.setInterval(function () {
