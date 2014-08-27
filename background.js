@@ -1,7 +1,7 @@
 var logToObject   = true,
     pollingInterval = 10000,  // how often to do service enumeration
     expireRecords = true,     // expire PTR records based on their TTL
-    serviceType   = '_radiodan-http._tcp.local',
+    serviceType   = '_mediascape-http._tcp.local',
     serviceFinder = new ServiceFinder(handleServicesFound, serviceType, { expireRecords: expireRecords }),
     services      = [],
     recipients    = [];

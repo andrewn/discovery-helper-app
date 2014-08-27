@@ -64,7 +64,7 @@ window.addEventListener('load', function() {
     results.classList.add('working');
 
     finder && finder.shutdown();
-    finder = new ServiceFinder(callback_, '_radiodan-http._tcp.local');
+    finder = new ServiceFinder(callback_, '_mediascape-http._tcp.local');
     // finder = new ServiceFinder(callback_);
   });
   refreshBtn.click();
