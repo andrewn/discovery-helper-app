@@ -3,14 +3,14 @@
   "short_name": "mediscape-discovery-helper",
   "description": "Helps find radios on the local network",
   "manifest_version": 2,
-  "version": "0.7",
+  "version": "0.1.0",
   "app": {
     "background": {
       "scripts": [
-        "lodash.js", 
-        "dns.js", 
-        "service-finder.js", 
-        "background.js"
+        "lib/lodash.js",
+        "lib/dns.js",
+        "background/service-finder.js",
+        "background/background.js"
       ]
     }
   },
