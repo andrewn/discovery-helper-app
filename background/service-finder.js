@@ -27,7 +27,7 @@ var ServiceFinder = function(callback, serviceType, config) {
   // reject  -> log error
 
   // Enumerate this host's interface addresses and bind
-  // a UDP socket for each one. Store this promise so 
+  // a UDP socket for each one. Store this promise so
   // future network calls can send to all sockets.
   this.sockets = networkInterfaces()
                     .then(interfaceAddresses)
@@ -116,12 +116,12 @@ var ServiceFinder = function(callback, serviceType, config) {
     multicast.then(function (config) {
       console.log('created and bound to ', config);
       chrome.sockets.udp.joinGroup(
-        config.socketId, 
-        '224.0.0.251', //config.address, 
-        function (result) { 
+        config.socketId,
+        '224.0.0.251', //config.address,
+        function (result) {
           if (result != 0) {
             chrome.sockets.udp.close(config.socketId);
-            console.error('Error joining group', result); 
+            console.error('Error joining group', result);
           } else {
             console.log('Joined group', result);
           }
@@ -146,8 +146,8 @@ var ServiceFinder = function(callback, serviceType, config) {
     return new Promise(function (resolve, reject) {
       chrome.sockets.udp.create({}, function(createInfo) {
         chrome.sockets.udp.bind(
-          createInfo.socketId, 
-          address, 
+          createInfo.socketId,
+          address,
           port,
           function(result) {
             if (result >= 0) {
@@ -230,7 +230,7 @@ ServiceFinder.prototype.onReceive_ = function(info) {
   window.p = packet;
 
   // What is the QUESTION?
-  var question = _.first( 
+  var question = _.first(
     _.where( packet.data_.qd, { type: DNSRecord.TYPES.PTR } )
   );
 
@@ -323,8 +323,8 @@ ServiceFinder.prototype.parsePtr_ = function(rec) {
   };
 
   return serviceInstance;
-  // Perform resolution 
-  // this.resolveServiceInstance(serviceInstance.id);    
+  // Perform resolution
+  // this.resolveServiceInstance(serviceInstance.id);
 };
 
 ServiceFinder.prototype.parseSrv_ = function(instance, rec) {
@@ -336,7 +336,7 @@ ServiceFinder.prototype.parseSrv_ = function(instance, rec) {
 ServiceFinder.prototype.parseTxt_ = function(instance, rec) {
   var data;
 
-  // If name property is empty then this is the 
+  // If name property is empty then this is the
   // record we want
   if (!rec.name) {
     data = rec.data.txtdata;
@@ -349,7 +349,7 @@ ServiceFinder.prototype.parseTxt_ = function(instance, rec) {
 };
 
 ServiceFinder.prototype.parseA_ = function(instance, rec) {
-  // If name property is empty then this is the 
+  // If name property is empty then this is the
   // record we want
   if (!rec.name) {
     instance.address = rec.data.address;
@@ -382,13 +382,13 @@ ServiceFinder.prototype.broadcast_ = function(sock, address) {
 };
 
 /**
- * Given an instance name, resolves the SRV and TXT record for 
+ * Given an instance name, resolves the SRV and TXT record for
  * the instance. From the spec:
  *    The SRV record for a service gives the port number and
  *    target host name where the service may be found.  The TXT record
  *    gives additional information about the service, as described in
  *    Section 6, "Data Syntax for DNS-SD TXT Records".
- * 
+ *
  */
 ServiceFinder.prototype.resolveServiceInstance = function(instanceName) {
   var self = this;
@@ -402,13 +402,13 @@ ServiceFinder.prototype.resolveServiceInstance = function(instanceName) {
 };
 
 /**
- * Given an instance name, resolves the SRV and TXT record for 
+ * Given an instance name, resolves the SRV and TXT record for
  * the instance. From the spec:
  *    The SRV record for a service gives the port number and
  *    target host name where the service may be found.  The TXT record
  *    gives additional information about the service, as described in
  *    Section 6, "Data Syntax for DNS-SD TXT Records".
- * 
+ *
  */
 ServiceFinder.prototype.resolveServiceInstanceForSocket_ = function(sock, instanceName) {
   var packet = new DNSPacket();

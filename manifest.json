@@ -15,10 +15,10 @@
     }
   },
   "sockets": {
-    "udp": { 
-      "bind": "*", 
-      "send": "*", 
-      "multicastMembership": "" 
+    "udp": {
+      "bind": "*",
+      "send": "*",
+      "multicastMembership": ""
     }
   },
   "permissions": [ "system.network" ],
