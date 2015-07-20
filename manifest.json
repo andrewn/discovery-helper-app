@@ -7,20 +7,10 @@
   "app": {
     "background": {
       "scripts": [
-        "lib/lodash.js",
-        "lib/dns.js",
-        "background/service-finder.js",
         "background/background.js"
       ]
     }
   },
-  "sockets": {
-    "udp": {
-      "bind": "*",
-      "send": "*",
-      "multicastMembership": ""
-    }
-  },
-  "permissions": [ "system.network" ],
+  "permissions": [ "mdns" ],
   "icons": { "128": "img/icon.png" }
 }
