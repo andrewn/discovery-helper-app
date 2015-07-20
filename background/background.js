@@ -1,8 +1,5 @@
 var logToObject   = false,
-    pollingInterval = 10000,  // how often to do service enumeration
-    expireRecords = true,     // expire PTR records based on their TTL
     serviceType   = '_capi._tcp.local',
-    serviceFinder = new ServiceFinder(handleServicesFound, serviceType, { expireRecords: expireRecords }),
     services      = [],
     recipients    = [];
 
@@ -28,12 +25,6 @@ if (logToObject) {
   var logger = Logger(console, 500);
 }
 
-if (pollingInterval) {
-  window.setInterval(function () {
-    serviceFinder.browseServices();
-  }, pollingInterval);
-}
-
 chrome.runtime.onMessageExternal.addListener(function(message, sender) {
   if(recipients.indexOf(sender.id) == -1) {
     recipients.push(sender.id);
@@ -41,20 +32,18 @@ chrome.runtime.onMessageExternal.addListener(function(message, sender) {
   }
 });
 
-function handleServicesFound(error) {
-  services = [];
+chrome.mdns.onServiceList.addListener(function(services) {
+  var mappedServices;
 
-  if (error) {
-    console.error(error);
-  } else {
-    services = serviceFinder.instances();
+  if(services.length === 0) {
+    return;
   }
 
-  services = services.map(transformTxtToKeys);
+  mappedServices = services.map(transformTxtToKeys);
 
-  console.log('Found %o:', services.length, services);
-  sendMessage(recipients, services);
-}
+  console.log('Found %o:', mappedServices.length, mappedServices);
+  sendMessage(recipients, mappedServices);
+}, {'serviceType': serviceType});
 
 /*
   Parse a services TXT record values into
@@ -69,8 +58,14 @@ function handleServicesFound(error) {
 */
 function transformTxtToKeys(service) {
   var obj = {};
-  if (service.txt && service.txt.map) {
-    service.txt.forEach(function (txt) {
+
+  service.api  = 'capi';
+  service.host = service.serviceName.split('.')[0];
+  service.address = service.ipAddress;
+  service.port = service.serviceHostPort.split(':')[1];
+
+  if(service.serviceData && service.serviceData.map) {
+    service.serviceData.forEach(function (txt) {
       var parts = txt.split('='),
           key   = parts[0],
           value = parts[1] || true;
@@ -85,6 +80,9 @@ function transformTxtToKeys(service) {
     });
     service.txt = obj;
   }
+
+  service.uri  = 'ws://' + service.serviceHostPort + service.txt.Path;
+
   return service;
 }
 
