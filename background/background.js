@@ -60,7 +60,7 @@ function transformTxtToKeys(service) {
   var obj = {};
 
   service.api  = 'capi';
-  service.host = service.serviceName.split('.')[0];
+  service.host = service.serviceName.replace('.'+serviceType, '');
   service.address = service.ipAddress;
   service.port = service.serviceHostPort.split(':')[1];
 
