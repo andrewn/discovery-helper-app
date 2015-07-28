@@ -3,7 +3,7 @@
   "short_name": "mediscape-discovery-helper",
   "description": "Helps find radios on the local network",
   "manifest_version": 2,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "app": {
     "background": {
       "scripts": [
