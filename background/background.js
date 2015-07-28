@@ -1,5 +1,10 @@
+const SERVICE_TYPES = {
+  MEDIASCAPE: '_mediascape-http._tcp.local',
+  CAPI: '_capi._tcp.local'
+};
+
 var logToObject   = false,
-    serviceTypes  = ['_capi._tcp.local', '_mediascape-http._tcp.local'],
+    serviceTypes  = [SERVICE_TYPES.CAPI, SERVICE_TYPES.MEDIASCAPE],
     serviceCache  = {},
     recipients    = [];
 
@@ -103,7 +108,15 @@ function transformTxtToKeys(service) {
     service.txt = obj;
   }
 
-  service.uri  = 'ws://' + service.serviceHostPort + service.txt.Path;
+  switch(service.serviceType) {
+    case SERVICE_TYPES.MEDIASCAPE:
+      service.uri = 'http://' + service.serviceHostPort;
+      break;
+    case SERVICE_TYPES.CAPI:
+      service.uri = 'ws://' + service.serviceHostPort + service.txt.Path;
+      break;
+  }
+
 
   return service;
 }
@@ -116,4 +129,3 @@ function sendMessage(recievers, message) {
     );
   });
 }
-
