@@ -1,6 +1,6 @@
 var logToObject   = false,
-    serviceType   = '_capi._tcp.local',
-    services      = [],
+    serviceTypes  = ['_capi._tcp.local', '_mediascape-http._tcp.local'],
+    serviceCache  = {},
     recipients    = [];
 
 // Override some logging functions
@@ -32,18 +32,41 @@ chrome.runtime.onMessageExternal.addListener(function(message, sender) {
   }
 });
 
-chrome.mdns.onServiceList.addListener(function(services) {
-  var mappedServices;
+serviceTypes.forEach(function(serviceType) {
+  chrome.mdns.onServiceList.addListener(
+    curryServiceListener(serviceType),
+    {'serviceType': serviceType}
+  );
+});
 
-  if(services.length === 0) {
-    return;
+function curryServiceListener(serviceType) {
+  return function(services) {
+    var mappedServices;
+
+    function addServiceType(s) {
+      s.serviceType = serviceType;
+
+      return s;
+    }
+
+    mappedServices = services.map(addServiceType).map(transformTxtToKeys);
+
+    console.log('Found %o for %s:', mappedServices.length, serviceType, mappedServices);
+    updateRecipients(mappedServices, serviceType);
   }
+}
 
-  mappedServices = services.map(transformTxtToKeys);
+function updateRecipients(mappedServices, serviceType) {
+  var concatServices;
 
-  console.log('Found %o:', mappedServices.length, mappedServices);
-  sendMessage(recipients, mappedServices);
-}, {'serviceType': serviceType});
+  serviceCache[serviceType] = mappedServices;
+
+  concatServices = Object.keys(serviceCache).reduce(function(prev, current) {
+    return prev.concat(serviceCache[current]);
+  }, []);
+
+  sendMessage(recipients, concatServices);
+}
 
 /*
   Parse a services TXT record values into
@@ -59,8 +82,7 @@ chrome.mdns.onServiceList.addListener(function(services) {
 function transformTxtToKeys(service) {
   var obj = {};
 
-  service.api  = 'capi';
-  service.host = service.serviceName.replace('.'+serviceType, '');
+  service.host = service.serviceName.replace('.'+service.serviceType, '');
   service.address = service.ipAddress;
   service.port = service.serviceHostPort.split(':')[1];
 
