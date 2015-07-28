@@ -30,10 +30,14 @@ if (logToObject) {
   var logger = Logger(console, 500);
 }
 
+/*
+  Respond to other extension's requests for
+  a complete service list
+*/
 chrome.runtime.onMessageExternal.addListener(function(message, sender) {
   if(recipients.indexOf(sender.id) == -1) {
     recipients.push(sender.id);
-    sendMessage([sender.id], services);
+    sendMessage([sender.id], concatServices());
   }
 });
 
@@ -61,16 +65,15 @@ function curryServiceListener(serviceType) {
   }
 }
 
-function updateRecipients(mappedServices, serviceType) {
-  var concatServices;
-
-  serviceCache[serviceType] = mappedServices;
-
-  concatServices = Object.keys(serviceCache).reduce(function(prev, current) {
+function concatServices() {
+  return Object.keys(serviceCache).reduce(function(prev, current) {
     return prev.concat(serviceCache[current]);
   }, []);
+}
 
-  sendMessage(recipients, concatServices);
+function updateRecipients(mappedServices, serviceType) {
+  serviceCache[serviceType] = mappedServices;
+  sendMessage(recipients, concatServices());
 }
 
 /*
