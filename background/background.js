@@ -94,7 +94,7 @@ function transformTxtToKeys(service) {
   service.address = service.ipAddress;
   service.port = service.serviceHostPort.split(':')[1];
 
-  if(service.serviceData && service.serviceData.map) {
+  if (service.serviceData && service.serviceData.map) {
     service.serviceData.forEach(function (txt) {
       var parts = txt.split('='),
           key   = parts[0],
@@ -102,16 +102,18 @@ function transformTxtToKeys(service) {
 
       try {
         value = JSON.parse(value);
-      } catch (e) {
-        // Value isn't JSON
+      }
+      catch (e) {
+        // Ignore - value isn't JSON
       }
 
       obj[key] = value;
     });
+
     service.txt = obj;
   }
 
-  switch(service.serviceType) {
+  switch (service.serviceType) {
     case SERVICE_TYPES.MEDIASCAPE:
       service.uri = 'http://' + service.serviceHostPort;
       break;
@@ -119,7 +121,6 @@ function transformTxtToKeys(service) {
       service.uri = 'ws://' + service.serviceHostPort + service.txt.Path;
       break;
   }
-
 
   return service;
 }
